@@ -1,5 +1,4 @@
 # Cleanup chromebooks specific config files / firmares and add generic ones instead
-# Keep the original chromebook configuration if "native_chromebook_image" option is used
 
 native_chromebook_image=0
 no_camera_config=0
@@ -11,6 +10,8 @@ do
 	if [ "$i" == "invert_camera_order" ]; then invert_camera_order=1; fi
 done
 
+ret=0
+
 if [ "$native_chromebook_image" -eq 1 ]; then
 rm -r /roota/lib/firmware/iwlwifi*
 if [ ! "$?" -eq 0 ]; then ret=$((ret + (2 ** 0))); fi
@@ -21,15 +22,12 @@ if [ ! "$?" -eq 0 ]; then ret=$((ret + (2 ** 2))); fi
 exit $ret
 fi
 
-ret=0
-
 rm -r /roota/lib/firmware/*
 if [ ! "$?" -eq 0 ]; then ret=$((ret + (2 ** 0))); fi
 tar zxf /rootc/packages/firmwares.tar.gz -C /roota/lib/firmware
 if [ ! "$?" -eq 0 ]; then ret=$((ret + (2 ** 1))); fi
 tar zxf /rootc/packages/alsa-ucm-conf.tar.gz -C /roota/usr/share/alsa
 if [ ! "$?" -eq 0 ]; then ret=$((ret + (2 ** 2))); fi
-if [ ! "$(cat /proc/version | cut -d' ' -f3 | cut -c1-4 | sed 's@\.@@g')" -eq 515 ]; then rm -f /roota/lib/firmware/*.pnvm; fi
 
 if [ "$no_camera_config" -eq 1 ]; then
 cat >/roota/etc/init/camera.conf <<CAMERASCRIPT
@@ -121,10 +119,7 @@ end script
 CAMERASCRIPT
 fi
 if [ ! "$?" -eq 0 ]; then ret=$((ret + (2 ** 3))); fi
-#if [ -d /roota/etc/cras ]; then
-#	rm -r /roota/etc/cras/*
-#	if [ ! "$?" -eq 0 ]; then ret=$((ret + (2 ** 4))); fi
-#fi
+
 if [ -d /roota/etc/dptf ]; then
 	rm -r /roota/etc/dptf/*
 	if [ ! "$?" -eq 0 ]; then ret=$((ret + (2 ** 4))); fi

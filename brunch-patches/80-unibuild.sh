@@ -12,23 +12,25 @@ do
 done
 
 ret=0
-board=$(fgrep 'CHROMEOS_RELEASE_DESCRIPTION' /roota/etc/lsb-release | cut -d' ' -f5 | tr a-z A-Z)
-if [ "$board" == "CORAL" ]; then
+board=$(fgrep 'CHROMEOS_RELEASE_DESCRIPTION' /roota/etc/lsb-release | cut -d' ' -f5)
+if [ "$board" == "coral" ]; then
 	hwid="ASTRONAUT"
-elif [ "$board" == "HATCH" ]; then
+elif [ "$board" == "hatch" ]; then
 	hwid="JINLON-YTGY"
-elif [ "$board" == "NAMI" ]; then
+elif [ "$board" == "nami" ]; then
 	hwid="AKALI"
-elif [ "$board" == "OCTOPUS" ]; then
+elif [ "$board" == "octopus" ]; then
 	hwid="BOBBA"
-elif [ "$board" == "RAMMUS" ]; then
+elif [ "$board" == "rammus" ]; then
 	hwid="SHYVANA"
-elif [ "$board" == "VOLTEER" ]; then
+elif [ "$board" == "volteer" ]; then
 	hwid="VOXEL-GFMQ"
-elif [ "$board" == "ZORK" ]; then
+elif [ "$board" == "zork" ]; then
 	hwid="GUMBOZ-JPUQ"
+elif [ "$board" == "guybrush" ]; then
+	hwid="NIPPERKIN"	
 else
-	hwid="$board"
+	hwid="$(echo $board | tr a-z A-Z)"
 fi
 
 if [ "$enable_updates" -eq 1 ]; then
@@ -38,9 +40,10 @@ if [ "$enable_updates" -eq 1 ]; then
 	cat >/roota/bin/chroot <<CHROOT
 #!/bin/bash
 if [ "\$EUID" -eq 0 ] && [ "\$1" == "." ] && [ "\$2" == "/usr/bin/cros_installer" ]; then
-exit 0
+	rm -rf /var/lib/ureadahead
+	exit 0
 else
-chroot.orig "\$@"
+	chroot.orig "\$@"
 fi
 CHROOT
 	if [ ! "$?" -eq 0 ]; then ret=$((ret + (2 ** 1))); fi
@@ -61,15 +64,15 @@ HWID
 if [ ! "$?" -eq 0 ]; then ret=$((ret + (2 ** 3))); fi
 
 if [ "$native_chromebook_image" -eq 1 ]; then
-	if [ "$board" == "NAMI" ]; then
-		sndcard="kblda7219max"
-		device="$(cat /sys/class/dmi/id/board_name | sed 's# ##g' | tr [A-Z] [a-z])"
-	fi
-	if [ ! -z "sndcard" ] && [ ! -z "device" ] && [ -d /roota/usr/share/alsa/ucm/"$sndcard"."$device" ] && [ -f /roota/usr/share/alsa/ucm/"$sndcard"."$device"/"$sndcard"."$device".conf ]; then
-		if [ -d /roota/usr/share/alsa/ucm/"$sndcard" ]; then rm -r /roota/usr/share/alsa/ucm/"$sndcard"; fi
-		cp -r /roota/usr/share/alsa/ucm/"$sndcard"."$device" /roota/usr/share/alsa/ucm/"$sndcard"
-		mv /roota/usr/share/alsa/ucm/"$sndcard"/"$sndcard"."$device".conf /roota/usr/share/alsa/ucm/"$sndcard"/"$sndcard".conf
-	fi
+	for ucm in $(ls /roota/usr/share/alsa/ucm/ | grep "\.$(cat /sys/class/dmi/id/board_name | sed 's# ##g' | tr [A-Z] [a-z])$"); do
+		sndcard=$(echo $ucm | cut -d'.' -f1)
+		device=$(echo $ucm | cut -d'.' -f2)
+		if [ ! -z "sndcard" ] && [ ! -z "device" ] && [ -f /roota/usr/share/alsa/ucm/"$sndcard"."$device"/"$sndcard"."$device".conf ]; then
+			if [ -d /roota/usr/share/alsa/ucm/"$sndcard" ]; then rm -r /roota/usr/share/alsa/ucm/"$sndcard"; fi
+			cp -r /roota/usr/share/alsa/ucm/"$sndcard"."$device" /roota/usr/share/alsa/ucm/"$sndcard"
+			mv /roota/usr/share/alsa/ucm/"$sndcard"/"$sndcard"."$device".conf /roota/usr/share/alsa/ucm/"$sndcard"/"$sndcard".conf
+		fi
+	done
 fi
 
 if [ -f /roota/usr/share/chromeos-config/config.json ]; then
@@ -104,7 +107,8 @@ if [ -f /roota/usr/share/chromeos-config/config.json ]; then
         },
         "identity": {
           "platform-name": "${board}",
-          "smbios-name-match": "Brunch"
+          "smbios-name-match": "Brunch",
+          "sku-id": "0"
         },
         "name": "brunch",
         "test-label": "brunch"

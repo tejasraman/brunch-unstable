@@ -32,7 +32,7 @@ if [ ! -z $1 ] && [ "$1" != "skip" ] ; then
 else
 	git clone -b master https://github.com/sebanc/chromeos-ota-extract.git rootfs || { echo "Failed to clone chromeos-ota-extract"; exit 1; }
 	cd rootfs
-	curl -L https://dl.google.com/chromeos/rammus/15329.44.0/stable-channel/chromeos_15329.44.0_rammus_stable-channel_full_mp-v2.bin-gy2daobvmyztkodtfdpibzury6pofvm5.signed -o ./update.signed || { echo "Failed to Download the OTA update"; exit 1; }
+	curl -L https://dl.google.com/chromeos/rammus/15662.64.0/stable-channel/chromeos_15662.64.0_rammus_stable-channel_full_mp-v4.bin-gy2tsnjrgaztataj3lz3kesauxnqrw5y.signed -o ./update.signed || { echo "Failed to Download the OTA update"; exit 1; }
 	python3 extract_android_ota_payload.py ./update.signed || { echo "Failed to extract the OTA update"; exit 1; }
 	cd ..
 	[ -f ./rootfs/root.img ] || { echo "ChromeOS rootfs has not been extracted"; exit 1; }
@@ -64,10 +64,11 @@ chmod 0755 ./chroot/home/chronos/initramfs/init || { echo "Failed to change init
 chown -R 1000:1000 ./chroot/home/chronos/initramfs || { echo "Failed to fix initramfs directory ownership"; exit 1; }
 
 mkdir ./chroot/home/chronos/rootc || { echo "Failed to create rootc directory"; exit 1; }
-ln -s kernel-5.15 ./chroot/home/chronos/rootc/kernel || { echo "Failed to make the default kernel symlink"; exit 1; }
-ln -s kernel-chromebook-5.15 ./chroot/home/chronos/rootc/kernel-macbook || { echo "Failed to make the macbook kernel symlink"; exit 1; }
-ln -s kernel-chromebook-5.15 ./chroot/home/chronos/rootc/kernel-macbook-t2 || { echo "Failed to make the macbook kernel symlink"; exit 1; }
-ln -s kernel-chromebook-5.15 ./chroot/home/chronos/rootc/kernel-steamdeck || { echo "Failed to make the macbook kernel symlink"; exit 1; }
+ln -s kernel-6.1 ./chroot/home/chronos/rootc/kernel || { echo "Failed to make the default kernel symlink"; exit 1; }
+ln -s kernel ./chroot/home/chronos/rootc/kernel-4.19 || { echo "Failed to make the legacy kernel symlink"; exit 1; }
+ln -s kernel ./chroot/home/chronos/rootc/kernel-5.4 || { echo "Failed to make the legacy kernel symlink"; exit 1; }
+ln -s kernel-chromebook-6.1 ./chroot/home/chronos/rootc/kernel-macbook || { echo "Failed to make the macbook kernel symlink"; exit 1; }
+ln -s kernel-chromebook-6.1 ./chroot/home/chronos/rootc/kernel-macbook-t2 || { echo "Failed to make the macbook kernel symlink"; exit 1; }
 cp -r ./packages ./chroot/home/chronos/rootc/ || { echo "Failed to copy brunch packages"; exit 1; }
 cp -r ./brunch-patches ./chroot/home/chronos/rootc/patches || { echo "Failed to copy brunch patches"; exit 1; }
 chmod -R 0755 ./chroot/home/chronos/rootc/patches || { echo "Failed to change patches directory permissions"; exit 1; }
@@ -91,25 +92,7 @@ cd ../../..
 
 if [ "$1" != "skip" ] && [ "$2" != "skip" ]; then
 
-if [ "$kernel" == "4.19" ] || [ "$kernel" == "5.4" ] || [ "$kernel" == "5.10" ] || [ "$kernel" == "5.15" ]; then
-
-cp -r ./chroot/home/chronos/kernel/lib/modules ./chroot/home/chronos/kernel/lib/orig || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-cp -r ./external-drivers/backport-iwlwifi-core76 ./chroot/tmp/backport-iwlwifi || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-cd ./chroot/tmp/backport-iwlwifi || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-make defconfig-iwlwifi-public || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-make -j"$NTHREADS" || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-make KLIB=../../../home/chronos/kernel install || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-cd ../../.. || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-rm -r ./chroot/tmp/backport-iwlwifi || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-rm -r ./chroot/home/chronos/kernel/lib/modules/"$kernel_version"/build || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-rm -r ./chroot/home/chronos/kernel/lib/modules/"$kernel_version"/kernel || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-mv ./chroot/home/chronos/kernel/lib/modules/"$kernel_version" ./chroot/home/chronos/kernel/lib/orig/"$kernel_version"/iwlwifi_backport || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-rm -r ./chroot/home/chronos/kernel/lib/modules || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-mv ./chroot/home/chronos/kernel/lib/orig ./chroot/home/chronos/kernel/lib/modules || { echo "Failed to build external iwlwifi module for kernel $kernel"; exit 1; }
-
-fi
-
-if [ "$kernel" == "4.19" ] || [ "$kernel" == "5.4" ] || [ "$kernel" == "5.10" ] || [ "$kernel" == "5.15" ]; then
+if [ "$kernel" == "4.19" ] || [ "$kernel" == "5.4" ] || [ "$kernel" == "5.10" ] || [ "$kernel" == "5.15" ] || [ "$kernel" == "6.1" ]; then
 
 cp -r ./external-drivers/rtbth ./chroot/tmp/ || { echo "Failed to build external rtbth module for kernel $kernel"; exit 1; }
 cd ./chroot/tmp/rtbth || { echo "Failed to build external rtbth module for kernel $kernel"; exit 1; }
@@ -252,14 +235,22 @@ rm -r ./chroot/tmp/rtl88x2bu || { echo "Failed to build external rtl88x2bu modul
 
 fi
 
-if [ "$kernel" == "5.10" ] || [ "$kernel" == "5.15" ] || [ "$kernel" == "6.1" ]; then
+if [ "$kernel" == "5.15" ] || [ "$kernel" == "6.1" ]; then
 
-cp -r ./external-drivers/rtl8852ae ./chroot/tmp/ || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
-cd ./chroot/tmp/rtl8852ae || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+cp -r ./external-drivers/rtl885xxx ./chroot/tmp/ || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+cd ./chroot/tmp/rtl885xxx || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
 make -j"$NTHREADS" || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
-cp ./rtw_8852ae.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/rtl8852ae.ko || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+mkdir -p ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/rtl885xxx || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+cp ./rtw89core.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/rtl885xxx/rtw89core.ko || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+cp ./rtw89pci.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/rtl885xxx/rtw89pci.ko || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+cp ./rtw_8852a.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/rtl885xxx/rtw_8852a.ko || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+cp ./rtw_8852ae.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/rtl885xxx/rtw_8852ae.ko || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+cp ./rtw_8852b.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/rtl885xxx/rtw_8852b.ko || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+cp ./rtw_8852be.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/rtl885xxx/rtw_8852be.ko || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+cp ./rtw_8852c.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/rtl885xxx/rtw_8852c.ko || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+cp ./rtw_8852ce.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/rtl885xxx/rtw_8852ce.ko || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
 cd ../../.. || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
-rm -r ./chroot/tmp/rtl8852ae || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
+rm -r ./chroot/tmp/rtl885xxx || { echo "Failed to build external rtl8852ae module for kernel $kernel"; exit 1; }
 
 fi
 
@@ -285,23 +276,12 @@ rm -r ./chroot/tmp/acpi_call || { echo "Failed to build external acpi_call modul
 
 fi
 
-if [ "$kernel" == "4.19" ] || [ "$kernel" == "5.4" ] || [ "$kernel" == "5.10" ]; then
-
-cp -r ./external-drivers/goodix ./chroot/tmp/ || { echo "Failed to build external goodix module for kernel $kernel"; exit 1; }
-cd ./chroot/tmp/goodix || { echo "Failed to build external goodix module for kernel $kernel"; exit 1; }
-make -j"$NTHREADS" modules || { echo "Failed to build external goodix module for kernel $kernel"; exit 1; }
-cp ./goodix.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/goodix.ko || { echo "Failed to build external goodix module for kernel $kernel"; exit 1; }
-cd ../../.. || { echo "Failed to build external goodix module for kernel $kernel"; exit 1; }
-rm -r ./chroot/tmp/goodix || { echo "Failed to build external goodix module for kernel $kernel"; exit 1; }
-
-fi
-
-if [ "$kernel" == "5.4" ] || [ "$kernel" == "5.10" ] || [ "$kernel" == "5.15" ] || [ "$kernel" == "6.1" ]; then
+if [ "$kernel" == "5.10" ] || [ "$kernel" == "5.15" ] || [ "$kernel" == "6.1" ]; then
 
 cp -r ./external-drivers/ipts ./chroot/tmp/ || { echo "Failed to build external ipts module for kernel $kernel"; exit 1; }
 cd ./chroot/tmp/ipts || { echo "Failed to build external ipts module for kernel $kernel"; exit 1; }
 make -j"$NTHREADS" || { echo "Failed to build external ipts module for kernel $kernel"; exit 1; }
-cp ./ipts.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/ipts.ko || { echo "Failed to build external ipts module for kernel $kernel"; exit 1; }
+cp ./src/ipts.ko ../../../chroot/home/chronos/kernel/lib/modules/"$kernel_version"/ipts.ko || { echo "Failed to build external ipts module for kernel $kernel"; exit 1; }
 cd ../../.. || { echo "Failed to build external ipts module for kernel $kernel"; exit 1; }
 rm -r ./chroot/tmp/ipts || { echo "Failed to build external ipts module for kernel $kernel"; exit 1; }
 
@@ -352,7 +332,12 @@ curl -L https://git.kernel.org/pub/scm/linux/kernel/git/sforshee/wireless-regdb.
 curl -L https://git.kernel.org/pub/scm/linux/kernel/git/sforshee/wireless-regdb.git/plain/regulatory.db.p7s -o ./out/regulatory.db.p7s || { echo "Failed to download the regulatory db"; exit 1; }
 cp -r ../../../../extra-firmwares/* ./out/ || { echo "Failed to copy brunch extra firmware files"; exit 1; }
 mkdir -p ../rootc/lib/firmware || { echo "Failed to make firmware directory"; exit 1; }
-mv ./out/amd-ucode.img ./out/intel-ucode.img ../rootc/lib/firmware/ || { echo "Failed to copy intel / amd ucode"; exit 1; }
+curl -L https://archlinux.org/packages/core/any/amd-ucode/download/ -o /tmp/amd-ucode.tar.zst || { echo "Failed to download amd ucode"; exit 1; }
+tar -C ../rootc/lib/firmware/ -xf /tmp/amd-ucode.tar.zst boot/amd-ucode.img --strip 1 || { echo "Failed to extract amd ucode"; exit 1; }
+rm /tmp/amd-ucode.tar.zst || { echo "Failed to cleanup amd ucode"; exit 1; }
+curl -L https://archlinux.org/packages/extra/any/intel-ucode/download/ -o /tmp/intel-ucode.tar.zst || { echo "Failed to download intel ucode"; exit 1; }
+tar -C ../rootc/lib/firmware/ -xf /tmp/intel-ucode.tar.zst boot/intel-ucode.img --strip 1 || { echo "Failed to extract intel ucode"; exit 1; }
+rm /tmp/intel-ucode.tar.zst || { echo "Failed to cleanup intel ucode"; exit 1; }
 cd ./out || { echo "Failed to enter the final firmware directory"; exit 1; }
 tar zcf ../../rootc/packages/firmwares.tar.gz * --owner=0 --group=0 || { echo "Failed to create the firmwares archive"; exit 1; }
 cd ../.. || { echo "Failed to cleanup firmwares directory"; exit 1; }
